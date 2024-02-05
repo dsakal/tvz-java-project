@@ -3,7 +3,6 @@ package com.tvz.java.files;
 import com.tvz.java.entities.Changes;
 import com.tvz.java.entities.User;
 import com.tvz.java.entities.UserRole;
-import com.tvz.java.exceptions.UnsupportedAlgorithmException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +44,7 @@ public class FileManager implements FileAccess{
         for (User u : users){
             try (PrintWriter out = new PrintWriter(new FileOutputStream("dat\\users.txt", true))) {
                 out.println(u.getUsername() + "," + u.hashPassword(u.getPassword()) + "," + u.getUserRole().getRole());
-            } catch (IOException | UnsupportedAlgorithmException e) {
+            } catch (IOException e) {
                 logger.error("Failed to write users to user file!", e);
             }
         }

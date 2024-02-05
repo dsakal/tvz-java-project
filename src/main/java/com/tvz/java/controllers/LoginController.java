@@ -4,7 +4,6 @@ import com.tvz.java.Main;
 import com.tvz.java.entities.UserRole;
 import com.tvz.java.entities.User;
 import com.tvz.java.exceptions.LoginException;
-import com.tvz.java.exceptions.UnsupportedAlgorithmException;
 import com.tvz.java.exceptions.WrongPasswordException;
 import com.tvz.java.exceptions.WrongUsernameException;
 import com.tvz.java.files.FileManager;
@@ -76,13 +75,10 @@ public class LoginController {
     }
 
     private void validateLogin(String username, String pass) throws WrongUsernameException, WrongPasswordException {
-        try{
-            loggedUser = fileManager.readUsers().stream()
+        loggedUser = fileManager.readUsers().stream()
                     .filter(u -> u.getUsername().equals(username) && u.getPassword().equals(u.hashPassword(pass)))
                     .findFirst();
-        }catch (UnsupportedAlgorithmException e){
-            logger.error(e.getMessage(), e);
-        }
+
         if (username.isEmpty()){
             if (pass.isEmpty()){
                 throw new WrongPasswordException("Login failed, username and password not entered");
@@ -99,13 +95,9 @@ public class LoginController {
 
     @FXML
     protected void onGuestClick(){
-        try{
-            loggedUser = fileManager.readUsers().stream()
+        loggedUser = fileManager.readUsers().stream()
                     .filter(u -> u.getUserRole().equals(UserRole.ADMIN))
                     .findFirst();
-        }catch (UnsupportedAlgorithmException e){
-            logger.error(e.getMessage(), e);
-        }
 
         FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource("statusBrowseScreen.fxml"));
         Scene scene = null;

@@ -4,7 +4,6 @@ import com.tvz.java.entities.FuelType;
 import com.tvz.java.entities.Furnace;
 import com.tvz.java.entities.Maintenance;
 import com.tvz.java.entities.Status;
-import com.tvz.java.exceptions.NotDeletableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,17 +90,12 @@ public class DatabaseManager implements DatabaseAccess{
         }
     }
     @Override
-    public void deleteFurnaceFromDatabase(Furnace furnace) throws NotDeletableException {
+    public void deleteFurnaceFromDatabase(Furnace furnace) {
         try (Connection connection = connectToDatabase()) {
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM FURNACE WHERE ID = " + furnace.getId());
             preparedStatement.executeUpdate();
         } catch (SQLException | IOException e) {
-            if (e instanceof SQLIntegrityConstraintViolationException){
-                throw new NotDeletableException(e);
-            }
-            else {
-                logger.error("Failed to delete furnace from database", e);
-            }
+            logger.error("Failed to delete furnace from database", e);
         }
     }
     @Override

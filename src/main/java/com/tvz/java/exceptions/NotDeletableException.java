@@ -1,6 +1,6 @@
 package com.tvz.java.exceptions;
 
-public class NotDeletableException extends Exception {
+public class NotDeletableException extends RuntimeException {
     public NotDeletableException() {
     }
 

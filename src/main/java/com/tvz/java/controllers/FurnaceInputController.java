@@ -12,7 +12,6 @@ import javafx.scene.control.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -165,6 +164,7 @@ public class FurnaceInputController {
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
                     try {
+                        validateDelete(selectedFurnace.get());
                         databaseManager.deleteFurnaceFromDatabase(selectedFurnace.get());
                     }
                     catch (NotDeletableException e) {
@@ -232,6 +232,17 @@ public class FurnaceInputController {
                         f.getPowerOutput().equals(furnace.getPowerOutput()));
         if (furnaceExists){
             throw new DuplicateInputException();
+        }
+    }
+    public void validateDelete(Furnace furnace){
+        List<Status> statuses = databaseManager.getStatusFromDatabase();
+        List<Maintenance> maintenances = databaseManager.getMaintenancesFromDatabase();
+
+        boolean check = statuses.stream().anyMatch(s -> s.getFurnace().equals(furnace)) ||
+                        maintenances.stream().anyMatch(m -> m.getFurnace().equals(furnace));
+
+        if (check){
+            throw new NotDeletableException();
         }
     }
     public void refreshTable() {

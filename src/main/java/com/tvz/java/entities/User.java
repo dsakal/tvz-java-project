@@ -1,7 +1,5 @@
 package com.tvz.java.entities;
 
-import com.tvz.java.Main;
-import com.tvz.java.exceptions.UnsupportedAlgorithmException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +10,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public final class User implements Hash, Serializable {
+    private static final Logger logger = LoggerFactory.getLogger(User.class);
     private String username;
     private String password;
     private UserRole userRole;
@@ -77,7 +76,8 @@ public final class User implements Hash, Serializable {
                     .digest(password.getBytes(StandardCharsets.UTF_8));
             return String.format("%064x", new BigInteger(1, hash));
         } catch (NoSuchAlgorithmException e) {
-            throw new UnsupportedAlgorithmException("System doesn't support SHA-256", e);
+            logger.error("Failed to hash password", e);
         }
+        return null;
     }
 }
