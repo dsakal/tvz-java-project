@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane style="-fx-background-color: grey;" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.tvz.java.controllers.MenuController">
+   <children>
+      <MenuBar prefHeight="27.0" prefWidth="600.0" style="-fx-background-color: grey;">
+         <menus>
+            <Menu mnemonicParsing="false" text="Status">
+               <items>
+                  <MenuItem mnemonicParsing="false" onAction="#showStatusBrowse" text="Browse" />
+                  <MenuItem fx:id="teams" mnemonicParsing="false" onAction="#showStatusEdit" text="Edit" />
+               </items>
+            </Menu>
+            <Menu mnemonicParsing="false" text="Maintenance">
+               <items>
+                  <MenuItem mnemonicParsing="false" onAction="#showMaintenanceBrowse" text="Browse" />
+                  <MenuItem fx:id="players" mnemonicParsing="false" onAction="#showMaintenanceEdit" text="Edit" />
+               </items>
+            </Menu>
+            <Menu mnemonicParsing="false" text="Furnaces">
+               <items>
+                  <MenuItem mnemonicParsing="false" onAction="#showFurnaceBrowse" text="Browse" />
+                  <MenuItem fx:id="tournaments" mnemonicParsing="false" onAction="#showFurnaceEdit" text="Edit" />
+               </items>
+            </Menu>
+            <Menu fx:id="history" mnemonicParsing="false" text="History">
+               <items>
+                  <MenuItem mnemonicParsing="false" onAction="#showChanges" text="Changes" />
+               </items>
+            </Menu>
+         </menus>
+      </MenuBar>
+      <Button mnemonicParsing="false" onAction="#onLogoutClick" text="Log out" AnchorPane.rightAnchor="0.0" />
+   </children>
+</AnchorPane>
