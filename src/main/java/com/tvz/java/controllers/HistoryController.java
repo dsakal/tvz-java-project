@@ -4,11 +4,10 @@ import com.tvz.java.entities.Changes;
 import com.tvz.java.entities.Furnace;
 import com.tvz.java.entities.Maintenance;
 import com.tvz.java.entities.Status;
-import com.tvz.java.files.FileManager;
+import com.tvz.java.files.FileUtils;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -17,7 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class HistoryController {
-    private final FileManager fileManager = new FileManager();
+    private final FileUtils fileUtils = new FileUtils();
     @FXML
     private TableView<Changes<?,?>> changesTableView;
     @FXML
@@ -28,7 +27,7 @@ public class HistoryController {
     private TableColumn<Changes<?,?>, String> userTableColumn;
     @FXML
     private TableColumn<Changes<?,?>, String> dateTimeTableColumn;
-    private List<Changes<?, ?>> changes = fileManager.deserializeChanges();
+    private List<Changes<?, ?>> changes = fileUtils.deserializeChanges();
     @FXML
     public void initialize(){
         beforeTableColumn.setCellFactory(param -> createWrappedTextCell());
@@ -40,12 +39,9 @@ public class HistoryController {
                 return new SimpleStringProperty(furnace.getName() + ", " + furnace.getSerialNumber() + ", " + furnace.getFuel().getFuelType() + ", " + furnace.getPowerOutput() + ", "
                         + furnace.getMaxTemp());
             }else if (changes.getBefore() instanceof Maintenance maintenance) {
-                return new SimpleStringProperty(maintenance.getFurnace().toString() + ", " + maintenance.getDescription() + ", " + maintenance.getCategory()
-                        + ", " + maintenance.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy.")) + ", "
-                        + maintenance.getDuration());
+                return new SimpleStringProperty(maintenance.toString());
             }else if (changes.getBefore() instanceof Status status) {
-                return new SimpleStringProperty(status.getFurnace().toString() + ", " + status.getCurrentStatus() + ", " + status.getEfficiency()
-                        + ", " + status.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy.")));
+                return new SimpleStringProperty(status.toString());
             }else if (changes.getBefore() instanceof String str) {
                 return new SimpleStringProperty(str);
             }else {
@@ -58,12 +54,9 @@ public class HistoryController {
                 return new SimpleStringProperty(furnace.getName() + ", " + furnace.getSerialNumber() + ", " + furnace.getFuel().getFuelType() + ", " + furnace.getPowerOutput() + ", "
                         + furnace.getMaxTemp());
             }else if (changes.getAfter() instanceof Maintenance maintenance) {
-                return new SimpleStringProperty(maintenance.getFurnace().toString() + ", " + maintenance.getDescription() + ", " + maintenance.getCategory()
-                        + ", " + maintenance.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy.")) + ", "
-                        + maintenance.getDuration());
+                return new SimpleStringProperty(maintenance.toString());
             }else if (changes.getAfter() instanceof Status status) {
-                return new SimpleStringProperty(status.getFurnace().toString() + ", " + status.getCurrentStatus() + ", " + status.getEfficiency()
-                        + ", " + status.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy.")));
+                return new SimpleStringProperty(status.toString());
             }else if (changes.getAfter() instanceof String str) {
                 return new SimpleStringProperty(str);
             }else {

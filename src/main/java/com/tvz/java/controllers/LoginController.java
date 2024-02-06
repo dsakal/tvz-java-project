@@ -6,7 +6,7 @@ import com.tvz.java.entities.User;
 import com.tvz.java.exceptions.LoginException;
 import com.tvz.java.exceptions.WrongPasswordException;
 import com.tvz.java.exceptions.WrongUsernameException;
-import com.tvz.java.files.FileManager;
+import com.tvz.java.files.FileUtils;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -26,7 +26,7 @@ public class LoginController {
     private TextField usernameTextField;
     @FXML
     private PasswordField passwordTextField;
-    private final FileManager fileManager = new FileManager();
+    private final FileUtils fileUtils = new FileUtils();
     public static Optional<User> loggedUser;
     public static Optional<User> getLoggedUser(){
         return loggedUser;
@@ -75,7 +75,7 @@ public class LoginController {
     }
 
     private void validateLogin(String username, String pass) throws WrongUsernameException, WrongPasswordException {
-        loggedUser = fileManager.readUsers().stream()
+        loggedUser = fileUtils.readUsers().stream()
                     .filter(u -> u.getUsername().equals(username) && u.getPassword().equals(u.hashPassword(pass)))
                     .findFirst();
 
@@ -95,7 +95,7 @@ public class LoginController {
 
     @FXML
     protected void onGuestClick(){
-        loggedUser = fileManager.readUsers().stream()
+        loggedUser = fileUtils.readUsers().stream()
                     .filter(u -> u.getUserRole().equals(UserRole.ADMIN))
                     .findFirst();
 

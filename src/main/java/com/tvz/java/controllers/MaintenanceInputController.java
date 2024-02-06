@@ -1,11 +1,16 @@
 package com.tvz.java.controllers;
 
-import com.tvz.java.database.DatabaseManager;
+import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.Changes;
 import com.tvz.java.entities.Furnace;
 import com.tvz.java.entities.Maintenance;
 import com.tvz.java.entities.User;
-import com.tvz.java.files.FileManager;
+import com.tvz.java.files.FileUtils;
+import com.tvz.java.threads.CreateThread;
+import com.tvz.java.threads.DeleteThread;
+import com.tvz.java.threads.ReadThread;
+import com.tvz.java.threads.UpdateThread;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -15,14 +20,15 @@ import javafx.scene.text.Text;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 public class MaintenanceInputController {
-    private final FileManager fileManager = new FileManager();
-    private final DatabaseManager databaseManager = new DatabaseManager();
-    private List<Changes<?, ?>> changes = fileManager.deserializeChanges();
+    private final FileUtils fileUtils = new FileUtils();
+    private final DatabaseUtils databaseUtils = new DatabaseUtils();
+    private List<Changes<?, ?>> changes = fileUtils.deserializeChanges();
     private Optional<User> user = LoginController.getLoggedUser();
     @FXML
     private TableView<Maintenance> maintenanceTableView;
@@ -46,20 +52,20 @@ public class MaintenanceInputController {
     private DatePicker datePicker;
     @FXML
     private TextField durationTextField;
-    private List<Maintenance> maintenances;
-    private List<Furnace> furnaces;
+    private List<Maintenance> maintenances = new ArrayList<>();
+    private List<Furnace> furnaces = new ArrayList<>();
     private Optional<Maintenance> selectedMaintenance = Optional.empty();
 
     public void initialize(){
-        furnaces = databaseManager.getFurnacesFromDatabase();
-        maintenances = databaseManager.getMaintenancesFromDatabase();
+        //furnaces = databaseUtils.readFurnacesDatabase();
+        //maintenances = databaseUtils.readMaintenancesDatabase();
 
         List<String> categories = Arrays.asList("Scheduled", "Unscheduled");
         categoryChoiceBox.setItems(FXCollections.observableArrayList(categories));
         categoryChoiceBox.getSelectionModel().select(0);
 
-        furnaceChoiceBox.setItems(FXCollections.observableArrayList(furnaces));
-        furnaceChoiceBox.getSelectionModel().select(0);
+        refreshChoiceBox();
+        //furnaceChoiceBox.getSelectionModel().select(0);
 
         furnaceTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFurnace().toString()));
         descriptionTableColumn.setCellFactory(tc -> {
@@ -75,7 +81,6 @@ public class MaintenanceInputController {
         categoryTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getCategory()));
         dateTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy."))));
         durationTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDuration().toString() + "h"));
-        maintenanceTableView.setItems(FXCollections.observableArrayList(maintenances));
 
         maintenanceTableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -92,11 +97,12 @@ public class MaintenanceInputController {
                 durationTextField.setText(text.replaceAll("[^\\d]", ""));
             }
         });
+        refreshTable();
     }
 
     public void onNewClick(){
         Maintenance maintenance = getDataFromScreen();
-        if (maintenance != null){
+        if (maintenance != null && user.isPresent()){
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Confirmation");
             alert.setHeaderText(null);
@@ -108,9 +114,12 @@ public class MaintenanceInputController {
 
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseManager.addNewMaintenanceToDatabase(maintenance);
+                    //databaseUtils.createMaintenanceInDatabase(maintenance);
+                    CreateThread<Maintenance> createThread = new CreateThread<>(maintenance);
+                    Platform.runLater(createThread);
+
                     changes.add(new Changes<>("Added new maintenance", maintenance, user.get(), LocalDateTime.now()));
-                    fileManager.serializeChanges(changes);
+                    fileUtils.serializeChanges(changes);
                 }
             });
         }
@@ -122,13 +131,11 @@ public class MaintenanceInputController {
         if (selectedMaintenance.isPresent()){
             maintenance.setId(selectedMaintenance.get().getId());
         }
-        Optional<Maintenance> before = Optional.empty();
-        for (Maintenance m : maintenances){
-            if (m.getId().equals(maintenance.getId())){
-                before = Optional.of(m);
-            }
-        }
-        if (maintenance != null){
+        Optional<Maintenance> before = maintenances.stream()
+                .filter(m -> m.getId().equals(maintenance.getId()))
+                .findFirst();
+
+        if (maintenance != null && user.isPresent()){
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Confirmation");
             alert.setHeaderText(null);
@@ -138,12 +145,14 @@ public class MaintenanceInputController {
             ButtonType noButton = new ButtonType("No");
             alert.getButtonTypes().setAll(yesButton, noButton);
 
-            Optional<Maintenance> finalBefore = before;
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseManager.editMaintenanceInDatabase(maintenance);
-                    changes.add(new Changes<>(finalBefore.get(), maintenance, user.get(), LocalDateTime.now()));
-                    fileManager.serializeChanges(changes);
+                    //databaseUtils.updateMaintenanceInDatabase(maintenance);
+                    UpdateThread<Maintenance> updateThread = new UpdateThread<>(maintenance);
+                    Platform.runLater(updateThread);
+
+                    changes.add(new Changes<>(before.get(), maintenance, user.get(), LocalDateTime.now()));
+                    fileUtils.serializeChanges(changes);
                 }
             });
         }
@@ -151,7 +160,7 @@ public class MaintenanceInputController {
         clearInput();
     }
     public void onDeleteClick(){
-        if (selectedMaintenance.isPresent()){
+        if (selectedMaintenance.isPresent() && user.isPresent()){
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Confirmation");
             alert.setHeaderText(null);
@@ -163,9 +172,12 @@ public class MaintenanceInputController {
 
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseManager.deleteMaintenanceFromDatabase(selectedMaintenance.get());
+                    //databaseUtils.deleteMaintenanceFromDatabase(selectedMaintenance.get());
+                    DeleteThread<Maintenance> deleteThread = new DeleteThread<>(selectedMaintenance.get());
+                    Platform.runLater(deleteThread);
+
                     changes.add(new Changes<>(selectedMaintenance.get(), "Deleted maintenance", user.get(), LocalDateTime.now()));
-                    fileManager.serializeChanges(changes);
+                    fileUtils.serializeChanges(changes);
                 }
             });
         }
@@ -206,15 +218,34 @@ public class MaintenanceInputController {
         }
         return null;
     }
-    public void refreshTable() {
-        maintenances = databaseManager.getMaintenancesFromDatabase();
-        maintenanceTableView.setItems(FXCollections.observableArrayList(maintenances));
-    }
     public void clearInput(){
         furnaceChoiceBox.getSelectionModel().select(0);
         descriptionTextArea.clear();
         categoryChoiceBox.getSelectionModel().select(0);
         datePicker.setValue(null);
         durationTextField.clear();
+    }
+    public void readFurnaces(){
+        ReadThread<Furnace> readThread = new ReadThread<>(furnaces, Furnace.class);
+        Platform.runLater(readThread);
+    }
+    public void readMaintenances(){
+        ReadThread<Maintenance> readThread = new ReadThread<>(maintenances, Maintenance.class);
+        Platform.runLater(readThread);
+    }
+    private void refreshTable() {
+        Thread thread = new Thread(() -> {
+            readMaintenances();
+            Platform.runLater(() -> maintenanceTableView.setItems(FXCollections.observableArrayList(maintenances)));
+        });
+        thread.start();
+    }
+    private void refreshChoiceBox() {
+        Thread thread = new Thread(() -> {
+            readFurnaces();
+            Platform.runLater(() -> furnaceChoiceBox.setItems(FXCollections.observableArrayList(furnaces)));
+            Platform.runLater(() -> furnaceChoiceBox.getSelectionModel().select(0));
+        });
+        thread.start();
     }
 }

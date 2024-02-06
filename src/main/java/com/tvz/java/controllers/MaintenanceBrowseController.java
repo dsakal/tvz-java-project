@@ -1,8 +1,10 @@
 package com.tvz.java.controllers;
 
-import com.tvz.java.database.DatabaseManager;
+import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.Furnace;
 import com.tvz.java.entities.Maintenance;
+import com.tvz.java.threads.ReadThread;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -12,12 +14,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class MaintenanceBrowseController {
     private static final Logger logger = LoggerFactory.getLogger(MaintenanceBrowseController.class);
-    private final DatabaseManager databaseManager = new DatabaseManager();
+    private final DatabaseUtils databaseUtils = new DatabaseUtils();
     @FXML
     private TableView<Maintenance> maintenanceTableView;
     @FXML
@@ -34,10 +37,10 @@ public class MaintenanceBrowseController {
     private TextField searchTextField;
     @FXML
     private ChoiceBox<String> searchChoiceBox;
-    private List<Maintenance> maintenances;
+    private List<Maintenance> maintenances = new ArrayList<>();
 
     public void initialize() {
-        maintenances = databaseManager.getMaintenancesFromDatabase();
+        //maintenances = databaseUtils.readMaintenancesDatabase();
         List<String> categories = Arrays.asList("All", "Furnace", "Description", "Category", "Date", "Duration");
 
         searchChoiceBox.setItems(FXCollections.observableArrayList(categories));
@@ -57,7 +60,8 @@ public class MaintenanceBrowseController {
         categoryTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getCategory()));
         dateTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy."))));
         durationTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDuration().toString() + "h"));
-        maintenanceTableView.setItems(FXCollections.observableArrayList(maintenances));
+
+        refreshTable();
     }
     public void onSearchClick() {
         String text = searchTextField.getText().toLowerCase();
@@ -89,5 +93,16 @@ public class MaintenanceBrowseController {
                 })
                 .toList();
         maintenanceTableView.setItems(FXCollections.observableArrayList(filteredMaintenance));
+    }
+    public void readMaintenances(){
+        ReadThread<Maintenance> readThread = new ReadThread<>(maintenances, Maintenance.class);
+        Platform.runLater(readThread);
+    }
+    private void refreshTable() {
+        Thread thread = new Thread(() -> {
+            readMaintenances();
+            Platform.runLater(() -> maintenanceTableView.setItems(FXCollections.observableArrayList(maintenances)));
+        });
+        thread.start();
     }
 }

@@ -1,8 +1,10 @@
 package com.tvz.java.controllers;
 
-import com.tvz.java.database.DatabaseManager;
+import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.*;
-import com.tvz.java.files.FileManager;
+import com.tvz.java.files.FileUtils;
+import com.tvz.java.threads.ReadThread;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -12,13 +14,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.chrono.ChronoLocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 public class StatusInputController {
-    private final DatabaseManager databaseManager = new DatabaseManager();
-    private final FileManager fileAccess = new FileManager();
+    private final DatabaseUtils databaseUtils = new DatabaseUtils();
+    private final FileUtils fileAccess = new FileUtils();
     private List<Changes<?, ?>> changes = fileAccess.deserializeChanges();
     private Optional<User> user = LoginController.getLoggedUser();
     @FXML
@@ -37,45 +40,44 @@ public class StatusInputController {
     private ChoiceBox<String> statusChoiceBox;
     @FXML
     private DatePicker datePicker;
-    private List<Maintenance> maintenances;
-    private List<Furnace> furnaces;
-    private List<Status> statusList;
+    private List<Maintenance> maintenances = new ArrayList<>();
+    private List<Furnace> furnaces = new ArrayList<>();
+    private List<Status> statusList = new ArrayList<>();
     private Optional<Status> selectedStatus = Optional.empty();
 
     public void initialize(){
         List<String> currentStatuses = Arrays.asList("In production", "Under maintenance", "Not in use");
 
-        furnaces = databaseManager.getFurnacesFromDatabase();
-        maintenances = databaseManager.getMaintenancesFromDatabase();
-        statusList = databaseManager.getStatusFromDatabase();
+        /*furnaces = databaseUtils.readFurnacesDatabase();
+        maintenances = databaseUtils.readMaintenancesDatabase();
+        statusList = databaseUtils.readStatusesFromDatabase();*/
 
         statusChoiceBox.setItems(FXCollections.observableArrayList(currentStatuses));
         statusChoiceBox.getSelectionModel().select(0);
 
-        furnaceChoiceBox.setItems(FXCollections.observableArrayList(furnaces));
-        furnaceChoiceBox.getSelectionModel().select(0);
+        refreshChoiceBox();
 
-        furnaceTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFurnace().toString()));
-        statusTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getCurrentStatus()));
+        furnaceTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().furnace().toString()));
+        statusTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().currentStatus()));
         efficiencyTableColumn.setCellValueFactory(cellData -> {
-            double efficiencyValue = cellData.getValue().getEfficiency();
+            double efficiencyValue = cellData.getValue().efficiency();
             if (efficiencyValue == (int) efficiencyValue) {
                 return new SimpleStringProperty(String.format("%.0f%%", efficiencyValue));
             } else {
                 return new SimpleStringProperty(String.format("%.2f%%", efficiencyValue));
             }
         });
-        dateTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy."))));
-        statusTableView.setItems(FXCollections.observableArrayList(statusList));
+        dateTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().date().format(DateTimeFormatter.ofPattern("dd.MM.yyyy."))));
 
         statusTableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 selectedStatus = Optional.of(statusTableView.getSelectionModel().getSelectedItem());
-                furnaceChoiceBox.getSelectionModel().select(selectedStatus.get().getFurnace());
-                statusChoiceBox.getSelectionModel().select(selectedStatus.get().getCurrentStatus());
-                datePicker.setValue(selectedStatus.get().getDate());
+                furnaceChoiceBox.getSelectionModel().select(selectedStatus.get().furnace());
+                statusChoiceBox.getSelectionModel().select(selectedStatus.get().currentStatus());
+                datePicker.setValue(selectedStatus.get().date());
             }
         });
+        refreshTable();
     }
 
     public void onNewClick(){
@@ -92,7 +94,7 @@ public class StatusInputController {
 
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseManager.addNewStatusToDatabase(status);
+                    databaseUtils.createStatusInDatabase(status);
                     changes.add(new Changes<>("Added new status", status, user.get(), LocalDateTime.now()));
                     fileAccess.serializeChanges(changes);
                 }
@@ -103,16 +105,14 @@ public class StatusInputController {
     }
 
     public void onEditClick(){
-        Status status = getDataFromScreen();
-        if (selectedStatus.isPresent()){
-            status.setId(selectedStatus.get().getId());
-        }
-        Optional<Status> before = Optional.empty();
-        for (Status s : statusList){
-            if (s.getId().equals(status.getId())){
-                before = Optional.of(s);
-            }
-        }
+        Status statusFromScreen = getDataFromScreen();
+        Status status = selectedStatus.map(selected -> new Status(selected.id(), statusFromScreen.furnace(),
+                        statusFromScreen.currentStatus(), statusFromScreen.efficiency(), statusFromScreen.date()))
+                .orElse(statusFromScreen);
+        Optional<Status> before = statusList.stream()
+                .filter(s -> s.id().equals(status.id()))
+                .findFirst();
+
         if (status != null){
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle("Confirmation");
@@ -123,11 +123,10 @@ public class StatusInputController {
             ButtonType noButton = new ButtonType("No");
             alert.getButtonTypes().setAll(yesButton, noButton);
 
-            Optional<Status> finalBefore = before;
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseManager.editStatusInDatabase(status);
-                    changes.add(new Changes<>(finalBefore.get(), status, user.get(), LocalDateTime.now()));
+                    databaseUtils.updateStatusInDatabase(status);
+                    changes.add(new Changes<>(before.get(), status, user.get(), LocalDateTime.now()));
                     fileAccess.serializeChanges(changes);
                 }
             });
@@ -148,7 +147,7 @@ public class StatusInputController {
 
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseManager.deleteStatusFromDatabase(selectedStatus.get());
+                    databaseUtils.deleteStatusFromDatabase(selectedStatus.get());
                     changes.add(new Changes<>(selectedStatus.get(), "Deleted status", user.get(), LocalDateTime.now()));
                     fileAccess.serializeChanges(changes);
                 }
@@ -184,9 +183,18 @@ public class StatusInputController {
         }
         return null;
     }
-    public void refreshTable() {
-        statusList = databaseManager.getStatusFromDatabase();
-        statusTableView.setItems(FXCollections.observableArrayList(statusList));
+    public void readStatus(){
+        ReadThread<Status> readThread = new ReadThread<>(statusList, Status.class);
+        Platform.runLater(readThread);
+    }
+    private void refreshTable() {
+        Thread thread = new Thread(() -> {
+            readFurnaces();
+            readMaintenances();
+            readStatus();
+            Platform.runLater(() -> statusTableView.setItems(FXCollections.observableArrayList(statusList)));
+        });
+        thread.start();
     }
     public void clearInput(){
         furnaceChoiceBox.getSelectionModel().select(0);
@@ -200,15 +208,29 @@ public class StatusInputController {
         }else {
             efficiency = 65.00;
         }
-        Integer maintenanceDowntime = 0;
-        for (Maintenance m : maintenances){
-            if (m.getDate().isAfter(ChronoLocalDate.from(LocalDateTime.now().minusYears(1))) && m.getDate().isBefore(ChronoLocalDate.from(LocalDateTime.now()))) {
-                if (m.getFurnace().equals(furnace)) {
-                    maintenanceDowntime += m.getDuration();
-                }
-            }
-        }
+        Integer maintenanceDowntime = maintenances.stream()
+                .filter(m -> m.getDate().isAfter(LocalDate.now().minusYears(1)) &&
+                        m.getDate().isBefore(LocalDate.now()) &&
+                        m.getFurnace().equals(furnace))
+                .mapToInt(Maintenance::getDuration)
+                .sum();
         efficiency -= (((furnace.getPowerOutput()*16)/1000) + ((double) maintenanceDowntime/24));
         return efficiency;
+    }
+    public void readFurnaces(){
+        ReadThread<Furnace> readThread = new ReadThread<>(furnaces, Furnace.class);
+        Platform.runLater(readThread);
+    }
+    public void readMaintenances(){
+        ReadThread<Maintenance> readThread = new ReadThread<>(maintenances, Maintenance.class);
+        Platform.runLater(readThread);
+    }
+    private void refreshChoiceBox() {
+        Thread thread = new Thread(() -> {
+            readFurnaces();
+            Platform.runLater(() -> furnaceChoiceBox.setItems(FXCollections.observableArrayList(furnaces)));
+            Platform.runLater(() -> furnaceChoiceBox.getSelectionModel().select(0));
+        });
+        thread.start();
     }
 }

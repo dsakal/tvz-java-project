@@ -61,7 +61,7 @@ public class Furnace extends Entity implements Serializable {
 
     @Override
     public String toString() {
-        return getName() + " " + getSerialNumber();
+        return name + " " + serialNumber;
     }
 
     @Override

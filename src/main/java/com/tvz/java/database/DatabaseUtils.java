@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
-public class DatabaseManager implements DatabaseAccess{
-    private static final Logger logger = LoggerFactory.getLogger(DatabaseManager.class);
+public class DatabaseUtils implements DatabaseAccess{
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseUtils.class);
     private static final String DATABASE_FILE = "dat/database.properties";
     @Override
     public Connection connectToDatabase() throws SQLException, IOException {
@@ -34,7 +34,7 @@ public class DatabaseManager implements DatabaseAccess{
         return DriverManager.getConnection(databaseURL, username, password);
     }
     @Override
-    public List<Furnace> getFurnacesFromDatabase() {
+    public List<Furnace> readFurnacesDatabase() {
         List<Furnace> furnaces = new ArrayList<>();
         try (Connection connection = connectToDatabase()) {
             Statement statement = connection.createStatement();
@@ -62,7 +62,7 @@ public class DatabaseManager implements DatabaseAccess{
         return furnaces;
     }
     @Override
-    public void addNewFurnaceToDatabase(Furnace furnace) {
+    public void createFurnaceInDatabase(Furnace furnace) {
         try (Connection connection = connectToDatabase()) {
             PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO FURNACE(NAME, SERIAL_NUMBER, FUEL, POWER_OUTPUT, MAX_TEMP) VALUES (?, ?, ?, ?, ?)");
             preparedStatement.setString(1, furnace.getName());
@@ -76,7 +76,7 @@ public class DatabaseManager implements DatabaseAccess{
         }
     }
     @Override
-    public void editFurnaceInDatabase(Furnace furnace) {
+    public void updateFurnaceInDatabase(Furnace furnace) {
         try (Connection connection = connectToDatabase()) {
             PreparedStatement preparedStatement = connection.prepareStatement("UPDATE FURNACE SET NAME = ?, SERIAL_NUMBER = ?, FUEL = ?, POWER_OUTPUT = ?, MAX_TEMP = ? WHERE ID=" + furnace.getId());
             preparedStatement.setString(1, furnace.getName());
@@ -99,7 +99,7 @@ public class DatabaseManager implements DatabaseAccess{
         }
     }
     @Override
-    public List<Maintenance> getMaintenancesFromDatabase() {
+    public List<Maintenance> readMaintenancesDatabase() {
         List<Maintenance> maintenances = new ArrayList<>();
         try (Connection connection = connectToDatabase()) {
             Statement statement = connection.createStatement();
@@ -108,7 +108,7 @@ public class DatabaseManager implements DatabaseAccess{
                 Long id = resultSet.getLong("id");
                 Long furnaceId = resultSet.getLong("furnace_id");
                 Optional<Furnace> furnace = Optional.empty();
-                for (Furnace f : getFurnacesFromDatabase()){
+                for (Furnace f : readFurnacesDatabase()){
                     if (f.getId().equals(furnaceId)){
                         furnace = Optional.of(f);
                     }
@@ -127,7 +127,7 @@ public class DatabaseManager implements DatabaseAccess{
         return maintenances;
     }
     @Override
-    public void addNewMaintenanceToDatabase(Maintenance maintenance) {
+    public void createMaintenanceInDatabase(Maintenance maintenance) {
         try (Connection connection = connectToDatabase()) {
             PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO MAINTENANCE(FURNACE_ID, DESCRIPTION, CATEGORY, DATE, DURATION) VALUES (?, ?, ?, ?, ?)");
             preparedStatement.setLong(1, maintenance.getFurnace().getId());
@@ -141,7 +141,7 @@ public class DatabaseManager implements DatabaseAccess{
         }
     }
     @Override
-    public void editMaintenanceInDatabase(Maintenance maintenance) {
+    public void updateMaintenanceInDatabase(Maintenance maintenance) {
         try (Connection connection = connectToDatabase()) {
             PreparedStatement preparedStatement = connection.prepareStatement("UPDATE MAINTENANCE SET FURNACE_ID = ?, DESCRIPTION = ?, CATEGORY = ?, DATE = ?, DURATION = ? WHERE ID=" + maintenance.getId());
             preparedStatement.setLong(1, maintenance.getFurnace().getId());
@@ -164,7 +164,7 @@ public class DatabaseManager implements DatabaseAccess{
         }
     }
     @Override
-    public List<Status> getStatusFromDatabase() {
+    public List<Status> readStatusesFromDatabase() {
         List<Status> statuses = new ArrayList<>();
         try (Connection connection = connectToDatabase()) {
             Statement statement = connection.createStatement();
@@ -173,7 +173,7 @@ public class DatabaseManager implements DatabaseAccess{
                 Long id = resultSet.getLong("id");
                 Long furnaceId = resultSet.getLong("furnace_id");
                 Optional<Furnace> furnace = Optional.empty();
-                for (Furnace f : getFurnacesFromDatabase()){
+                for (Furnace f : readFurnacesDatabase()){
                     if (f.getId().equals(furnaceId)){
                         furnace = Optional.of(f);
                     }
@@ -191,26 +191,26 @@ public class DatabaseManager implements DatabaseAccess{
         return statuses;
     }
     @Override
-    public void addNewStatusToDatabase(Status status) {
+    public void createStatusInDatabase(Status status) {
         try (Connection connection = connectToDatabase()) {
             PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO STATUS(FURNACE_ID, CURRENT_STATUS, EFFICIENCY, DATE) VALUES (?, ?, ?, ?)");
-            preparedStatement.setLong(1, status.getFurnace().getId());
-            preparedStatement.setString(2, status.getCurrentStatus());
-            preparedStatement.setDouble(3, status.getEfficiency());
-            preparedStatement.setString(4, status.getDate().format(DateTimeFormatter.ISO_DATE));
+            preparedStatement.setLong(1, status.furnace().getId());
+            preparedStatement.setString(2, status.currentStatus());
+            preparedStatement.setDouble(3, status.efficiency());
+            preparedStatement.setString(4, status.date().format(DateTimeFormatter.ISO_DATE));
             preparedStatement.executeUpdate();
         } catch (SQLException | IOException e) {
             logger.error("Failed to add new status to database", e);
         }
     }
     @Override
-    public void editStatusInDatabase(Status status) {
+    public void updateStatusInDatabase(Status status) {
         try (Connection connection = connectToDatabase()) {
-            PreparedStatement preparedStatement = connection.prepareStatement("UPDATE STATUS SET FURNACE_ID = ?, CURRENT_STATUS = ?, EFFICIENCY = ?, DATE = ? WHERE ID=" + status.getId());
-            preparedStatement.setLong(1, status.getFurnace().getId());
-            preparedStatement.setString(2, status.getCurrentStatus());
-            preparedStatement.setDouble(3, status.getEfficiency());
-            preparedStatement.setString(4, status.getDate().format(DateTimeFormatter.ISO_DATE));
+            PreparedStatement preparedStatement = connection.prepareStatement("UPDATE STATUS SET FURNACE_ID = ?, CURRENT_STATUS = ?, EFFICIENCY = ?, DATE = ? WHERE ID=" + status.id());
+            preparedStatement.setLong(1, status.furnace().getId());
+            preparedStatement.setString(2, status.currentStatus());
+            preparedStatement.setDouble(3, status.efficiency());
+            preparedStatement.setString(4, status.date().format(DateTimeFormatter.ISO_DATE));
             preparedStatement.executeUpdate();
         } catch (SQLException | IOException e) {
             logger.error("Failed to update status in database", e);
@@ -219,7 +219,7 @@ public class DatabaseManager implements DatabaseAccess{
     @Override
     public void deleteStatusFromDatabase(Status status) {
         try (Connection connection = connectToDatabase()) {
-            PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM STATUS WHERE ID = " + status.getId());
+            PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM STATUS WHERE ID = " + status.id());
             preparedStatement.executeUpdate();
         } catch (SQLException | IOException e) {
             logger.error("Failed to delete status from database", e);

@@ -12,16 +12,16 @@ import java.util.List;
 
 public interface DatabaseAccess {
     Connection connectToDatabase() throws SQLException, IOException;
-    List<Furnace> getFurnacesFromDatabase();
-    void addNewFurnaceToDatabase(Furnace furnace);
-    void editFurnaceInDatabase(Furnace furnace);
+    List<Furnace> readFurnacesDatabase();
+    void createFurnaceInDatabase(Furnace furnace);
+    void updateFurnaceInDatabase(Furnace furnace);
     void deleteFurnaceFromDatabase(Furnace furnace) throws NotDeletableException;
-    List<Maintenance> getMaintenancesFromDatabase();
-    void addNewMaintenanceToDatabase(Maintenance maintenance);
-    void editMaintenanceInDatabase(Maintenance maintenance);
+    List<Maintenance> readMaintenancesDatabase();
+    void createMaintenanceInDatabase(Maintenance maintenance);
+    void updateMaintenanceInDatabase(Maintenance maintenance);
     void deleteMaintenanceFromDatabase(Maintenance maintenance);
-    List<Status> getStatusFromDatabase();
-    void addNewStatusToDatabase(Status status);
-    void editStatusInDatabase(Status status);
+    List<Status> readStatusesFromDatabase();
+    void createStatusInDatabase(Status status);
+    void updateStatusInDatabase(Status status);
     void deleteStatusFromDatabase(Status status);
 }

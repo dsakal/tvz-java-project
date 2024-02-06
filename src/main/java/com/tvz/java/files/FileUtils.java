@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
-public class FileManager implements FileAccess{
-    private static final Logger logger = LoggerFactory.getLogger(FileManager.class);
+public class FileUtils implements FileAccess{
+    private static final Logger logger = LoggerFactory.getLogger(FileUtils.class);
     private static final String USERS_FILE = "dat\\users.txt";
     private static final String CHANGES_FILE = "dat\\changes.dat";
     @Override

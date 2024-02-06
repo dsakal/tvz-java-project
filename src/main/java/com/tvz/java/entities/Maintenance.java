@@ -2,6 +2,7 @@ package com.tvz.java.entities;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
 public class Maintenance extends Entity implements Serializable {
@@ -71,5 +72,14 @@ public class Maintenance extends Entity implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(furnace, description, Category, date, duration);
+    }
+
+    @Override
+    public String toString() {
+        return furnace.toString() + ", "
+                + description + ", "
+                + Category + ", "
+                + date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy.")) + ", "
+                + duration;
     }
 }

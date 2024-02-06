@@ -1,10 +1,15 @@
 package com.tvz.java.controllers;
 
-import com.tvz.java.database.DatabaseManager;
+import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.*;
 import com.tvz.java.exceptions.DuplicateInputException;
 import com.tvz.java.exceptions.NotDeletableException;
-import com.tvz.java.files.FileManager;
+import com.tvz.java.files.FileUtils;
+import com.tvz.java.threads.CreateThread;
+import com.tvz.java.threads.DeleteThread;
+import com.tvz.java.threads.ReadThread;
+import com.tvz.java.threads.UpdateThread;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -13,15 +18,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 public class FurnaceInputController {
     private static final Logger logger = LoggerFactory.getLogger(FurnaceInputController.class);
-    private final FileManager fileManager = new FileManager();
-    private final DatabaseManager databaseManager = new DatabaseManager();
-    private List<Changes<?, ?>> changes = fileManager.deserializeChanges();
+    private final FileUtils fileUtils = new FileUtils();
+    private final DatabaseUtils databaseUtils = new DatabaseUtils();
+    private List<Changes<?, ?>> changes = fileUtils.deserializeChanges();
     private Optional<User> user = LoginController.getLoggedUser();
     @FXML
     private TableView<Furnace> furnaceTableView;
@@ -45,10 +51,13 @@ public class FurnaceInputController {
     private TextField powerOutputTextField;
     @FXML
     private TextField maxTempTextField;
-    private List<Furnace> furnaces;
+    private List<Furnace> furnaces = new ArrayList<>();
+    private List<Maintenance> maintenances = new ArrayList<>();
+    private List<Status> statuses = new ArrayList<>();
     private Optional<Furnace> selectedFurnace = Optional.empty();
-    public void initialize(){
-        furnaces = databaseManager.getFurnacesFromDatabase();
+    public void initialize() {
+        readMaintenances();
+        readStatus();
         List<String> fuelTypes = Arrays.asList("Oil", "Gas", "Electricity");
         fuelTypeChoiceBox.setItems(FXCollections.observableArrayList(fuelTypes));
         fuelTypeChoiceBox.getSelectionModel().select(0);
@@ -58,8 +67,6 @@ public class FurnaceInputController {
         fuelTypeTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFuel().getFuelType()));
         powerOutputTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getPowerOutput().toString() + " KW"));
         maxTempTableColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getMaxTemp().toString() + " °C"));
-
-        furnaceTableView.setItems(FXCollections.observableArrayList(furnaces));
 
         furnaceTableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -81,11 +88,12 @@ public class FurnaceInputController {
                 maxTempTextField.setText(text.replaceAll("[^\\d]", ""));
             }
         });
+        refreshTable();
     }
 
     public void onNewClick(){
         Furnace furnace = getDataFromScreen();
-        if (furnace != null){
+        if (furnace != null && user.isPresent()){
             try{
                 checkDuplicate(furnace);
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -99,13 +107,15 @@ public class FurnaceInputController {
 
                 alert.showAndWait().ifPresent(buttonType -> {
                     if (buttonType == yesButton) {
-                        databaseManager.addNewFurnaceToDatabase(furnace);
+                        //databaseUtils.createFurnaceInDatabase(furnace);
+
+                        CreateThread<Furnace> createThread = new CreateThread<>(furnace);
+                        Platform.runLater(createThread);
+
                         changes.add(new Changes<>("Added new furnace", furnace, user.get(), LocalDateTime.now()));
-                        fileManager.serializeChanges(changes);
+                        fileUtils.serializeChanges(changes);
                     }
                 });
-                refreshTable();
-                clearInput();
             }catch (DuplicateInputException e){
                 logger.error("Duplicate furnace input", e);
                 Alert alert2 = new Alert(Alert.AlertType.ERROR);
@@ -115,6 +125,8 @@ public class FurnaceInputController {
                 alert2.showAndWait();
             }
         }
+        refreshTable();
+        clearInput();
     }
 
     public void onEditClick(){
@@ -122,63 +134,78 @@ public class FurnaceInputController {
         if (selectedFurnace.isPresent()){
             furnace.setId(selectedFurnace.get().getId());
         }
-        Optional<Furnace> before = Optional.empty();
-        for (Furnace f : furnaces){
-            if (f.getId().equals(furnace.getId())){
-                before = Optional.of(f);
+
+        Optional<Furnace> before = furnaces.stream()
+                .filter(f -> f.getId().equals(furnace.getId()))
+                .findFirst();
+
+        if (furnace != null && user.isPresent()){
+            try{
+                checkDuplicate(furnace);
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText(null);
+                alert.setContentText("Are you sure you want to edit the selected furnace?");
+
+                ButtonType yesButton = new ButtonType("Yes");
+                ButtonType noButton = new ButtonType("No");
+                alert.getButtonTypes().setAll(yesButton, noButton);
+
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == yesButton) {
+                        //databaseUtils.updateFurnaceInDatabase(furnace);
+
+                        UpdateThread<Furnace> updateThread = new UpdateThread<>(furnace);
+                        Platform.runLater(updateThread);
+
+                        changes.add(new Changes<>(before.get(), furnace, user.get(), LocalDateTime.now()));
+                        fileUtils.serializeChanges(changes);
+                    }
+                });
+            }catch (DuplicateInputException e){
+                logger.error("Duplicate furnace input", e);
+                Alert alert2 = new Alert(Alert.AlertType.ERROR);
+                alert2.setTitle("Error!");
+                alert2.setHeaderText("Duplicate input!");
+                alert2.setContentText("Duplicate furnace cannot be added!");
+                alert2.showAndWait();
             }
-        }
-        if (furnace != null){
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Confirmation");
-            alert.setHeaderText(null);
-            alert.setContentText("Are you sure you want to edit the selected furnace?");
-
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
-            alert.getButtonTypes().setAll(yesButton, noButton);
-
-            Optional<Furnace> finalBefore = before;
-            alert.showAndWait().ifPresent(buttonType -> {
-                if (buttonType == yesButton) {
-                    databaseManager.editFurnaceInDatabase(furnace);
-                    changes.add(new Changes<>(finalBefore.get(), furnace, user.get(), LocalDateTime.now()));
-                    fileManager.serializeChanges(changes);
-                }
-            });
         }
         refreshTable();
         clearInput();
     }
     public void onDeleteClick(){
-        if (selectedFurnace.isPresent()){
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Confirmation");
-            alert.setHeaderText(null);
-            alert.setContentText("Are you sure you want to delete the selected furnace?");
+        if (selectedFurnace.isPresent() && user.isPresent()){
+            try{
+                validateDelete(selectedFurnace.get());
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText(null);
+                alert.setContentText("Are you sure you want to delete the selected furnace?");
 
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
-            alert.getButtonTypes().setAll(yesButton, noButton);
+                ButtonType yesButton = new ButtonType("Yes");
+                ButtonType noButton = new ButtonType("No");
+                alert.getButtonTypes().setAll(yesButton, noButton);
 
-            alert.showAndWait().ifPresent(buttonType -> {
-                if (buttonType == yesButton) {
-                    try {
-                        validateDelete(selectedFurnace.get());
-                        databaseManager.deleteFurnaceFromDatabase(selectedFurnace.get());
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == yesButton) {
+                        //databaseUtils.createFurnaceInDatabase(furnace);
+
+                        DeleteThread<Furnace> deleteThread = new DeleteThread<>(selectedFurnace.get());
+                        Platform.runLater(deleteThread);
+
+                        changes.add(new Changes<>(selectedFurnace.get(), "Deleted furnace", user.get(), LocalDateTime.now()));
+                        fileUtils.serializeChanges(changes);
                     }
-                    catch (NotDeletableException e) {
-                        Alert alert2 = new Alert(Alert.AlertType.ERROR);
-                        alert2.setTitle("Error!");
-                        alert2.setHeaderText("Unable to delete!");
-                        alert2.setContentText("This furnace cannot be deleted!");
-                        alert2.showAndWait();
-                        logger.error("Failed to delete furnace from database!", e);
-                    }
-                    changes.add(new Changes<>(selectedFurnace.get(), "Deleted furnace", user.get(), LocalDateTime.now()));
-                    fileManager.serializeChanges(changes);
-                }
-            });
+                });
+            }catch (NotDeletableException e) {
+                Alert alert2 = new Alert(Alert.AlertType.ERROR);
+                alert2.setTitle("Error!");
+                alert2.setHeaderText("Unable to delete!");
+                alert2.setContentText("This furnace cannot be deleted!");
+                alert2.showAndWait();
+                logger.error("Failed to delete furnace from database!", e);
+            }
         }
         refreshTable();
         clearInput();
@@ -235,19 +262,24 @@ public class FurnaceInputController {
         }
     }
     public void validateDelete(Furnace furnace){
-        List<Status> statuses = databaseManager.getStatusFromDatabase();
-        List<Maintenance> maintenances = databaseManager.getMaintenancesFromDatabase();
-
-        boolean check = statuses.stream().anyMatch(s -> s.getFurnace().equals(furnace)) ||
+        boolean check = statuses.stream().anyMatch(s -> s.furnace().equals(furnace)) ||
                         maintenances.stream().anyMatch(m -> m.getFurnace().equals(furnace));
 
         if (check){
             throw new NotDeletableException();
         }
     }
-    public void refreshTable() {
-        furnaces = databaseManager.getFurnacesFromDatabase();
-        furnaceTableView.setItems(FXCollections.observableArrayList(furnaces));
+    public void readFurnaces(){
+        ReadThread<Furnace> readThread = new ReadThread<>(furnaces, Furnace.class);
+        Platform.runLater(readThread);
+    }
+    public void readMaintenances(){
+        ReadThread<Maintenance> readThread = new ReadThread<>(maintenances, Maintenance.class);
+        Platform.runLater(readThread);
+    }
+    public void readStatus(){
+        ReadThread<Status> readThread = new ReadThread<>(statuses, Status.class);
+        Platform.runLater(readThread);
     }
     public void clearInput(){
         nameTextField.clear();
@@ -255,5 +287,12 @@ public class FurnaceInputController {
         fuelTypeChoiceBox.getSelectionModel().select(0);
         powerOutputTextField.clear();
         maxTempTextField.clear();
+    }
+    private void refreshTable() {
+        Thread thread = new Thread(() -> {
+            readFurnaces();
+            Platform.runLater(() -> furnaceTableView.setItems(FXCollections.observableArrayList(furnaces)));
+        });
+        thread.start();
     }
 }
