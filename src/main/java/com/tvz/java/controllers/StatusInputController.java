@@ -3,7 +3,10 @@ package com.tvz.java.controllers;
 import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.*;
 import com.tvz.java.files.FileUtils;
+import com.tvz.java.threads.CreateThread;
+import com.tvz.java.threads.DeleteThread;
 import com.tvz.java.threads.ReadThread;
+import com.tvz.java.threads.UpdateThread;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -94,7 +97,9 @@ public class StatusInputController {
 
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseUtils.createStatusInDatabase(status);
+                    //databaseUtils.createStatusInDatabase(status);
+                    CreateThread<Status> createThread = new CreateThread<>(status);
+                    Platform.runLater(createThread);
                     changes.add(new Changes<>("Added new status", status, user.get(), LocalDateTime.now()));
                     fileAccess.serializeChanges(changes);
                 }
@@ -125,7 +130,10 @@ public class StatusInputController {
 
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseUtils.updateStatusInDatabase(status);
+                    //databaseUtils.updateStatusInDatabase(status);
+                    UpdateThread<Status> updateThread = new UpdateThread<>(status);
+                    Platform.runLater(updateThread);
+
                     changes.add(new Changes<>(before.get(), status, user.get(), LocalDateTime.now()));
                     fileAccess.serializeChanges(changes);
                 }
@@ -147,7 +155,10 @@ public class StatusInputController {
 
             alert.showAndWait().ifPresent(buttonType -> {
                 if (buttonType == yesButton) {
-                    databaseUtils.deleteStatusFromDatabase(selectedStatus.get());
+                    //databaseUtils.deleteStatusFromDatabase(selectedStatus.get());
+                    DeleteThread<Status> deleteThread = new DeleteThread<>(selectedStatus.get());
+                    Platform.runLater(deleteThread);
+
                     changes.add(new Changes<>(selectedStatus.get(), "Deleted status", user.get(), LocalDateTime.now()));
                     fileAccess.serializeChanges(changes);
                 }

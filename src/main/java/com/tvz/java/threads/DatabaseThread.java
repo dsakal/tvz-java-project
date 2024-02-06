@@ -1,11 +1,15 @@
 package com.tvz.java.threads;
 
+import com.tvz.java.controllers.FurnaceInputController;
 import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 public abstract class DatabaseThread{
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseThread.class);
     DatabaseUtils databaseUtils = new DatabaseUtils();
     private static boolean databaseConnectionActive = false;
 
@@ -14,7 +18,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -28,7 +32,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -41,7 +45,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -54,7 +58,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -67,7 +71,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -81,7 +85,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -94,7 +98,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -107,7 +111,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -120,7 +124,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -134,7 +138,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -147,7 +151,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
@@ -160,7 +164,7 @@ public abstract class DatabaseThread{
             try {
                 wait();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                logger.error("Thread interrupted while waiting for database connection.", e);
             }
         }
         databaseConnectionActive = true;
