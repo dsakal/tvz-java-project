@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 
 import java.io.IOException;
-import java.util.Optional;
+import java.util.*;
 
 public class LoginController {
     private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
@@ -32,16 +32,16 @@ public class LoginController {
         return loggedUser;
     }
     public static void setLoggedUser(){
-        loggedUser = null;
+        loggedUser = Optional.empty();
     }
 
     public void initialize() {
-        /*List<User> users = new ArrayList<>();
+        Set<User> users = new HashSet<>();
         users.add(new User("admin", "admin", UserRole.ADMIN));
         users.add(new User("dominik", "password", UserRole.USER));
         users.add(new User("pero", "password", UserRole.USER));
         users.add(new User("guest", "guest", UserRole.GUEST));
-        fileManager.writeUsers(users);*/
+        fileUtils.writeUsers(users);
     }
     @FXML
     protected void onLoginClick(){
@@ -88,7 +88,7 @@ public class LoginController {
         else if (pass.isEmpty()){
             throw new WrongPasswordException("Login failed, password not entered");
         }
-        else{
+        else if(loggedUser.isEmpty()){
             throw new LoginException("Login failed, incorrect credentials");
         }
     }
@@ -96,7 +96,7 @@ public class LoginController {
     @FXML
     protected void onGuestClick(){
         loggedUser = fileUtils.readUsers().stream()
-                    .filter(u -> u.getUserRole().equals(UserRole.ADMIN))
+                    .filter(u -> u.getUserRole().equals(UserRole.GUEST))
                     .findFirst();
 
         FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource("statusBrowseScreen.fxml"));

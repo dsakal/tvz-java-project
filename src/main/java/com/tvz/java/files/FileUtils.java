@@ -7,18 +7,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
+import java.util.*;
 
 public class FileUtils implements FileAccess{
     private static final Logger logger = LoggerFactory.getLogger(FileUtils.class);
     private static final String USERS_FILE = "dat\\users.txt";
     private static final String CHANGES_FILE = "dat\\changes.dat";
     @Override
-    public List<User> readUsers() {
-        List<User> users = new ArrayList<>();
+    public Set<User> readUsers() {
+        Set<User> users = new HashSet<>();
         try (Scanner in = new Scanner(new File(USERS_FILE))) {
             while (in.hasNextLine()){
                 String[] split = in.nextLine().split(",");
@@ -40,7 +37,7 @@ public class FileUtils implements FileAccess{
         return users;
     }
     @Override
-    public void writeUsers(List<User> users){
+    public void writeUsers(Set<User> users){
         for (User u : users){
             try (PrintWriter out = new PrintWriter(new FileOutputStream("dat\\users.txt", true))) {
                 out.println(u.getUsername() + "," + u.hashPassword(u.getPassword()) + "," + u.getUserRole().getRole());

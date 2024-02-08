@@ -2,6 +2,7 @@ package com.tvz.java.controllers;
 
 import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.*;
+import com.tvz.java.exceptions.DuplicateInputException;
 import com.tvz.java.files.FileUtils;
 import com.tvz.java.threads.CreateThread;
 import com.tvz.java.threads.DeleteThread;
@@ -12,6 +13,8 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class StatusInputController {
+    private static final Logger logger = LoggerFactory.getLogger(FurnaceInputController.class);
     private final DatabaseUtils databaseUtils = new DatabaseUtils();
     private final FileUtils fileAccess = new FileUtils();
     private List<Changes<?, ?>> changes = fileAccess.deserializeChanges();
@@ -86,24 +90,34 @@ public class StatusInputController {
     public void onNewClick(){
         Status status = getDataFromScreen();
         if (status != null){
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Confirmation");
-            alert.setHeaderText(null);
-            alert.setContentText("Are you sure you want to add a new status?");
+            try {
+                checkDuplicate(status);
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText(null);
+                alert.setContentText("Are you sure you want to add a new status?");
 
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
-            alert.getButtonTypes().setAll(yesButton, noButton);
+                ButtonType yesButton = new ButtonType("Yes");
+                ButtonType noButton = new ButtonType("No");
+                alert.getButtonTypes().setAll(yesButton, noButton);
 
-            alert.showAndWait().ifPresent(buttonType -> {
-                if (buttonType == yesButton) {
-                    //databaseUtils.createStatusInDatabase(status);
-                    CreateThread<Status> createThread = new CreateThread<>(status);
-                    Platform.runLater(createThread);
-                    changes.add(new Changes<>("Added new status", status, user.get(), LocalDateTime.now()));
-                    fileAccess.serializeChanges(changes);
-                }
-            });
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == yesButton) {
+                        //databaseUtils.createStatusInDatabase(status);
+                        CreateThread<Status> createThread = new CreateThread<>(status);
+                        Platform.runLater(createThread);
+                        changes.add(new Changes<>("Added new status", status, user.get(), LocalDateTime.now()));
+                        fileAccess.serializeChanges(changes);
+                    }
+                });
+            }catch (DuplicateInputException e){
+                logger.error("Duplicate status input", e);
+                Alert alert2 = new Alert(Alert.AlertType.ERROR);
+                alert2.setTitle("Error!");
+                alert2.setHeaderText("Duplicate input!");
+                alert2.setContentText("Duplicate status cannot be added!");
+                alert2.showAndWait();
+            }
         }
         refreshTable();
         clearInput();
@@ -114,30 +128,41 @@ public class StatusInputController {
         Status status = selectedStatus.map(selected -> new Status(selected.id(), statusFromScreen.furnace(),
                         statusFromScreen.currentStatus(), statusFromScreen.efficiency(), statusFromScreen.date()))
                 .orElse(statusFromScreen);
+
         Optional<Status> before = statusList.stream()
                 .filter(s -> s.id().equals(status.id()))
                 .findFirst();
 
         if (status != null){
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Confirmation");
-            alert.setHeaderText(null);
-            alert.setContentText("Are you sure you want to edit the selected status?");
+            try{
+                checkDuplicate(status);
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText(null);
+                alert.setContentText("Are you sure you want to edit the selected status?");
 
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
-            alert.getButtonTypes().setAll(yesButton, noButton);
+                ButtonType yesButton = new ButtonType("Yes");
+                ButtonType noButton = new ButtonType("No");
+                alert.getButtonTypes().setAll(yesButton, noButton);
 
-            alert.showAndWait().ifPresent(buttonType -> {
-                if (buttonType == yesButton) {
-                    //databaseUtils.updateStatusInDatabase(status);
-                    UpdateThread<Status> updateThread = new UpdateThread<>(status);
-                    Platform.runLater(updateThread);
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == yesButton) {
+                        //databaseUtils.updateStatusInDatabase(status);
+                        UpdateThread<Status> updateThread = new UpdateThread<>(status);
+                        Platform.runLater(updateThread);
 
-                    changes.add(new Changes<>(before.get(), status, user.get(), LocalDateTime.now()));
-                    fileAccess.serializeChanges(changes);
-                }
-            });
+                        changes.add(new Changes<>(before.get(), status, user.get(), LocalDateTime.now()));
+                        fileAccess.serializeChanges(changes);
+                    }
+                });
+            }catch (DuplicateInputException e){
+                logger.error("Duplicate status input", e);
+                Alert alert2 = new Alert(Alert.AlertType.ERROR);
+                alert2.setTitle("Error!");
+                alert2.setHeaderText("Duplicate input!");
+                alert2.setContentText("Duplicate status cannot be added!");
+                alert2.showAndWait();
+            }
         }
         refreshTable();
         clearInput();
@@ -243,5 +268,15 @@ public class StatusInputController {
             Platform.runLater(() -> furnaceChoiceBox.getSelectionModel().select(0));
         });
         thread.start();
+    }
+    public void checkDuplicate(Status status) throws DuplicateInputException {
+        boolean statusExists = statusList.stream()
+                .anyMatch(s -> s.furnace().equals(status.furnace()) &&
+                        s.currentStatus().equals(status.currentStatus()) &&
+                        s.efficiency().equals(status.efficiency()) &&
+                        s.date().equals(status.date()));
+        if (statusExists){
+            throw new DuplicateInputException();
+        }
     }
 }

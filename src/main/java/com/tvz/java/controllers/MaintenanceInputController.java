@@ -1,10 +1,12 @@
 package com.tvz.java.controllers;
 
+import com.tvz.java.Main;
 import com.tvz.java.database.DatabaseUtils;
 import com.tvz.java.entities.Changes;
 import com.tvz.java.entities.Furnace;
 import com.tvz.java.entities.Maintenance;
 import com.tvz.java.entities.User;
+import com.tvz.java.exceptions.DuplicateInputException;
 import com.tvz.java.files.FileUtils;
 import com.tvz.java.threads.CreateThread;
 import com.tvz.java.threads.DeleteThread;
@@ -16,6 +18,8 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.text.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class MaintenanceInputController {
+    private static final Logger logger = LoggerFactory.getLogger(MaintenanceInputController.class);
     private final FileUtils fileUtils = new FileUtils();
     private final DatabaseUtils databaseUtils = new DatabaseUtils();
     private List<Changes<?, ?>> changes = fileUtils.deserializeChanges();
@@ -103,25 +108,35 @@ public class MaintenanceInputController {
     public void onNewClick(){
         Maintenance maintenance = getDataFromScreen();
         if (maintenance != null && user.isPresent()){
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Confirmation");
-            alert.setHeaderText(null);
-            alert.setContentText("Are you sure you want to add a new maintenance?");
+            try{
+                checkDuplicate(maintenance);
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText(null);
+                alert.setContentText("Are you sure you want to add a new maintenance?");
 
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
-            alert.getButtonTypes().setAll(yesButton, noButton);
+                ButtonType yesButton = new ButtonType("Yes");
+                ButtonType noButton = new ButtonType("No");
+                alert.getButtonTypes().setAll(yesButton, noButton);
 
-            alert.showAndWait().ifPresent(buttonType -> {
-                if (buttonType == yesButton) {
-                    //databaseUtils.createMaintenanceInDatabase(maintenance);
-                    CreateThread<Maintenance> createThread = new CreateThread<>(maintenance);
-                    Platform.runLater(createThread);
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == yesButton) {
+                        //databaseUtils.createMaintenanceInDatabase(maintenance);
+                        CreateThread<Maintenance> createThread = new CreateThread<>(maintenance);
+                        Platform.runLater(createThread);
 
-                    changes.add(new Changes<>("Added new maintenance", maintenance, user.get(), LocalDateTime.now()));
-                    fileUtils.serializeChanges(changes);
-                }
-            });
+                        changes.add(new Changes<>("Added new maintenance", maintenance, user.get(), LocalDateTime.now()));
+                        fileUtils.serializeChanges(changes);
+                    }
+                });
+            }catch (DuplicateInputException e){
+                logger.error("Duplicate maintenance input", e);
+                Alert alert2 = new Alert(Alert.AlertType.ERROR);
+                alert2.setTitle("Error!");
+                alert2.setHeaderText("Duplicate input!");
+                alert2.setContentText("Duplicate maintenance cannot be added!");
+                alert2.showAndWait();
+            }
         }
         refreshTable();
         clearInput();
@@ -134,27 +149,37 @@ public class MaintenanceInputController {
         Optional<Maintenance> before = maintenances.stream()
                 .filter(m -> m.getId().equals(maintenance.getId()))
                 .findFirst();
+        if (maintenance != null && user.isPresent()) {
+            try {
+                checkDuplicate(maintenance);
 
-        if (maintenance != null && user.isPresent()){
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Confirmation");
-            alert.setHeaderText(null);
-            alert.setContentText("Are you sure you want to edit the selected maintenance?");
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText(null);
+                alert.setContentText("Are you sure you want to edit the selected maintenance?");
 
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
-            alert.getButtonTypes().setAll(yesButton, noButton);
+                ButtonType yesButton = new ButtonType("Yes");
+                ButtonType noButton = new ButtonType("No");
+                alert.getButtonTypes().setAll(yesButton, noButton);
 
-            alert.showAndWait().ifPresent(buttonType -> {
-                if (buttonType == yesButton) {
-                    //databaseUtils.updateMaintenanceInDatabase(maintenance);
-                    UpdateThread<Maintenance> updateThread = new UpdateThread<>(maintenance);
-                    Platform.runLater(updateThread);
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == yesButton) {
+                        //databaseUtils.updateMaintenanceInDatabase(maintenance);
+                        UpdateThread<Maintenance> updateThread = new UpdateThread<>(maintenance);
+                        Platform.runLater(updateThread);
 
-                    changes.add(new Changes<>(before.get(), maintenance, user.get(), LocalDateTime.now()));
-                    fileUtils.serializeChanges(changes);
-                }
-            });
+                        changes.add(new Changes<>(before.get(), maintenance, user.get(), LocalDateTime.now()));
+                        fileUtils.serializeChanges(changes);
+                    }
+                });
+            } catch (DuplicateInputException e) {
+                logger.error("Duplicate maintenance input", e);
+                Alert alert2 = new Alert(Alert.AlertType.ERROR);
+                alert2.setTitle("Error!");
+                alert2.setHeaderText("Duplicate input!");
+                alert2.setContentText("Duplicate maintenance cannot be added!");
+                alert2.showAndWait();
+            }
         }
         refreshTable();
         clearInput();
@@ -248,5 +273,15 @@ public class MaintenanceInputController {
         });
         thread.start();
     }
-
+    public void checkDuplicate(Maintenance maintenance) throws DuplicateInputException {
+        boolean maintenanceExists = maintenances.stream()
+                .anyMatch(m -> m.getFurnace().equals(maintenance.getFurnace()) &&
+                        m.getDescription().equals(maintenance.getDescription()) &&
+                        m.getCategory().equals(maintenance.getCategory()) &&
+                        m.getDate().equals(maintenance.getDate()) &&
+                        m.getDuration().equals(maintenance.getDuration()));
+        if (maintenanceExists){
+            throw new DuplicateInputException();
+        }
+    }
 }
